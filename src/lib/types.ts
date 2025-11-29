@@ -203,3 +203,48 @@ export interface AICapability {
   enabled: boolean;
   category: 'memory' | 'language' | 'control';
 }
+
+// Local LLM Configuration Types
+
+export type LLMProvider = 'ollama' | 'openai' | 'mock';
+
+export interface LLMConfig {
+  provider: LLMProvider;
+  endpoint: string;
+  model: string;
+  apiKey?: string;
+  temperature?: number;
+  maxTokens?: number;
+  systemPrompt?: string;
+}
+
+export interface LLMResponse {
+  content: string;
+  model: string;
+  done: boolean;
+  totalDuration?: number;
+  loadDuration?: number;
+  promptEvalCount?: number;
+  evalCount?: number;
+}
+
+export interface OllamaModel {
+  name: string;
+  modifiedAt: string;
+  size: number;
+  digest: string;
+  details?: {
+    format: string;
+    family: string;
+    parameterSize: string;
+    quantizationLevel: string;
+  };
+}
+
+export interface LLMConnectionStatus {
+  connected: boolean;
+  provider: LLMProvider;
+  model?: string;
+  lastChecked: number;
+  error?: string;
+}

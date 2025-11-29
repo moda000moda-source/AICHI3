@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +7,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
 import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Slider } from '@/components/ui/slider';
+import { Separator } from '@/components/ui/separator';
+import { toast } from 'sonner';
 import {
   Robot,
   Brain,
@@ -20,12 +25,16 @@ import {
   Lightning,
   Memory,
   Gear,
+  Plugs,
+  PlugsConnected,
+  Trash,
+  ArrowClockwise,
+  Plus,
+  CircleNotch,
 } from '@phosphor-icons/react';
-import {
-  generateMockAIAssistantState,
-  formatTimeAgo,
-} from '@/lib/mock-data';
-import type { AIMessage, AIMemoryItem, AICapability } from '@/lib/types';
+import { formatTimeAgo } from '@/lib/mock-data';
+import { useLocalLLM } from '@/hooks/use-local-llm';
+import type { AIMessage, AIMemoryItem, AICapability, LLMProvider } from '@/lib/types';
 
 function getCapabilityIcon(iconName: string) {
   const icons: Record<string, React.ReactNode> = {
@@ -208,67 +217,71 @@ function CapabilityCard({ capability, onToggle }: CapabilityCardProps) {
 }
 
 export function AIAssistant() {
-  const [state, setState] = useState(generateMockAIAssistantState);
+  const {
+    config,
+    connectionStatus,
+    availableModels,
+    messages,
+    memories,
+    capabilities,
+    isConnecting,
+    isGenerating,
+    streamingContent,
+    updateConfig,
+    refreshConnection,
+    sendMessage,
+    clearConversation,
+    addNewMemory,
+    deleteMemory,
+    toggleCapability,
+    clearAllStoredData,
+  } = useLocalLLM();
+
   const [inputValue, setInputValue] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
+  const [newMemoryKey, setNewMemoryKey] = useState('');
+  const [newMemoryValue, setNewMemoryValue] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Auto-scroll to bottom when messages or streaming content changes
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [state.currentConversation]);
+  }, [messages, streamingContent]);
 
-  const handleSendMessage = () => {
-    if (!inputValue.trim()) return;
-
-    const userMessage: AIMessage = {
-      id: `msg-${Date.now()}`,
-      role: 'user',
-      content: inputValue,
-      timestamp: Date.now(),
-    };
-
-    setState((prev) => ({
-      ...prev,
-      currentConversation: [...prev.currentConversation, userMessage],
-      lastActiveAt: Date.now(),
-    }));
-
+  const handleSendMessage = async () => {
+    if (!inputValue.trim() || isGenerating) return;
+    const message = inputValue;
     setInputValue('');
-    setIsTyping(true);
-
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponse: AIMessage = {
-        id: `msg-${Date.now()}`,
-        role: 'assistant',
-        content: generateAIResponse(inputValue),
-        timestamp: Date.now(),
-        action: detectAction(inputValue),
-      };
-
-      setState((prev) => ({
-        ...prev,
-        currentConversation: [...prev.currentConversation, aiResponse],
-        lastActiveAt: Date.now(),
-      }));
-      setIsTyping(false);
-    }, 1500);
+    await sendMessage(message);
   };
 
-  const handleToggleCapability = (id: string) => {
-    setState((prev) => ({
-      ...prev,
-      capabilities: prev.capabilities.map((cap) =>
-        cap.id === id ? { ...cap, enabled: !cap.enabled } : cap
-      ),
-    }));
+  const handleAddMemory = () => {
+    if (!newMemoryKey.trim() || !newMemoryValue.trim()) {
+      toast.error('请填写记忆标题和内容');
+      return;
+    }
+    addNewMemory({
+      type: 'preference',
+      key: newMemoryKey,
+      value: newMemoryValue,
+      confidence: 0.9,
+    });
+    setNewMemoryKey('');
+    setNewMemoryValue('');
+    toast.success('记忆已添加');
   };
 
-  const memoryCapabilities = state.capabilities.filter((c) => c.category === 'memory');
-  const languageCapabilities = state.capabilities.filter((c) => c.category === 'language');
-  const controlCapabilities = state.capabilities.filter((c) => c.category === 'control');
+  const handleClearAll = () => {
+    clearAllStoredData();
+    toast.success('所有数据已清除');
+  };
+
+  const memoryCapabilities = capabilities.filter((c) => c.category === 'memory');
+  const languageCapabilities = capabilities.filter((c) => c.category === 'language');
+  const controlCapabilities = capabilities.filter((c) => c.category === 'control');
+
+  const isConnected = connectionStatus?.connected ?? false;
 
   return (
     <div className="space-y-6">
@@ -280,18 +293,39 @@ export function AIAssistant() {
           <div>
             <h2 className="text-3xl font-bold">AI 智能助手</h2>
             <p className="text-muted-foreground">
-              具备记忆、语言理解和全面控制能力的智能助手
+              具备记忆、语言理解和全面控制能力的本地智能助手
             </p>
           </div>
         </div>
-        <Badge className="gap-1" variant={state.isActive ? 'default' : 'secondary'}>
-          <Sparkle size={14} weight="fill" />
-          {state.isActive ? '活跃中' : '休眠'}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge 
+            className="gap-1" 
+            variant={isConnected ? 'default' : 'secondary'}
+          >
+            {isConnected ? (
+              <PlugsConnected size={14} weight="fill" />
+            ) : (
+              <Plugs size={14} weight="fill" />
+            )}
+            {isConnected ? `已连接 ${config.model}` : '未连接'}
+          </Badge>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={refreshConnection}
+            disabled={isConnecting}
+          >
+            <ArrowClockwise 
+              size={18} 
+              weight="bold" 
+              className={isConnecting ? 'animate-spin' : ''} 
+            />
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="chat" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
+        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
           <TabsTrigger value="chat" className="gap-2">
             <ChatCircle size={18} weight="duotone" />
             <span className="hidden sm:inline">对话</span>
@@ -300,33 +334,71 @@ export function AIAssistant() {
             <Memory size={18} weight="duotone" />
             <span className="hidden sm:inline">记忆</span>
           </TabsTrigger>
+          <TabsTrigger value="config" className="gap-2">
+            <Plugs size={18} weight="duotone" />
+            <span className="hidden sm:inline">配置</span>
+          </TabsTrigger>
           <TabsTrigger value="capabilities" className="gap-2">
             <Gear size={18} weight="duotone" />
             <span className="hidden sm:inline">能力</span>
           </TabsTrigger>
         </TabsList>
 
+        {/* Chat Tab */}
         <TabsContent value="chat" className="space-y-4">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <ChatCircle size={20} weight="duotone" />
-                智能对话
-              </CardTitle>
-              <CardDescription>
-                使用自然语言与 AI 助手交流，执行钱包操作
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <ChatCircle size={20} weight="duotone" />
+                    智能对话
+                  </CardTitle>
+                  <CardDescription>
+                    使用自然语言与 AI 助手交流，执行钱包操作
+                  </CardDescription>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={clearConversation}
+                  className="gap-2"
+                >
+                  <Trash size={14} weight="duotone" />
+                  清空
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-[400px] pr-4" ref={scrollRef}>
-                {state.currentConversation.map((message) => (
+                {messages.length === 0 && !streamingContent && (
+                  <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                    <Robot size={48} weight="duotone" className="mb-4 text-primary/50" />
+                    <p className="text-center">开始与 AI 助手对话吧！</p>
+                    <p className="text-sm text-center mt-2">您可以询问钱包余额、创建交易、分析风险等</p>
+                  </div>
+                )}
+                {messages.map((message) => (
                   <MessageBubble key={message.id} message={message} />
                 ))}
-                {isTyping && (
+                {/* Streaming response */}
+                {(isGenerating && streamingContent) && (
+                  <div className="flex justify-start mb-4">
+                    <div className="max-w-[80%] rounded-2xl px-4 py-3 bg-muted">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Robot size={16} weight="duotone" className="text-primary" />
+                        <span className="text-xs font-medium text-primary">OmniCore AI</span>
+                      </div>
+                      <div className="text-sm whitespace-pre-wrap">{streamingContent}</div>
+                    </div>
+                  </div>
+                )}
+                {/* Thinking indicator */}
+                {(isGenerating && !streamingContent) && (
                   <div className="flex justify-start mb-4">
                     <div className="bg-muted rounded-2xl px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <Robot size={16} weight="duotone" className="text-primary animate-pulse" />
+                        <CircleNotch size={16} weight="bold" className="text-primary animate-spin" />
                         <span className="text-sm text-muted-foreground">AI 正在思考...</span>
                       </div>
                     </div>
@@ -338,22 +410,32 @@ export function AIAssistant() {
                   placeholder="输入您的问题或指令..."
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
                   className="flex-1"
+                  disabled={isGenerating}
                 />
-                <Button onClick={handleSendMessage} className="gap-2">
-                  <PaperPlaneTilt size={18} weight="fill" />
+                <Button 
+                  onClick={handleSendMessage} 
+                  className="gap-2"
+                  disabled={isGenerating || !inputValue.trim()}
+                >
+                  {isGenerating ? (
+                    <CircleNotch size={18} weight="bold" className="animate-spin" />
+                  ) : (
+                    <PaperPlaneTilt size={18} weight="fill" />
+                  )}
                   发送
                 </Button>
               </div>
               <div className="flex flex-wrap gap-2 mt-3">
-                {['查看钱包余额', '创建新交易', '分析风险', 'DeFi策略推荐'].map((suggestion) => (
+                {['查看钱包余额', '创建新交易', '分析风险', 'DeFi策略推荐', '你好'].map((suggestion) => (
                   <Button
                     key={suggestion}
                     variant="outline"
                     size="sm"
                     onClick={() => setInputValue(suggestion)}
                     className="text-xs"
+                    disabled={isGenerating}
                   >
                     {suggestion}
                   </Button>
@@ -363,6 +445,7 @@ export function AIAssistant() {
           </Card>
         </TabsContent>
 
+        {/* Memory Tab */}
         <TabsContent value="memory" className="space-y-4">
           <Card>
             <CardHeader>
@@ -371,15 +454,54 @@ export function AIAssistant() {
                 AI 记忆库
               </CardTitle>
               <CardDescription>
-                AI 从您的操作中学习到的偏好、模式和洞察
+                AI 从您的操作中学习到的偏好、模式和洞察 - 数据存储在本地
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-4 md:grid-cols-2">
-                {state.memories.map((memory) => (
-                  <MemoryCard key={memory.id} memory={memory} />
-                ))}
+              {/* Add new memory form */}
+              <div className="p-4 bg-muted rounded-lg mb-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <Plus size={16} weight="bold" className="text-primary" />
+                  <span className="font-medium text-sm">添加新记忆</span>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <Input
+                    placeholder="记忆标题（如：首选网络）"
+                    value={newMemoryKey}
+                    onChange={(e) => setNewMemoryKey(e.target.value)}
+                  />
+                  <Input
+                    placeholder="记忆内容（如：Ethereum 和 Polygon）"
+                    value={newMemoryValue}
+                    onChange={(e) => setNewMemoryValue(e.target.value)}
+                  />
+                </div>
+                <Button onClick={handleAddMemory} size="sm" className="mt-3 gap-2">
+                  <Plus size={14} weight="bold" />
+                  添加记忆
+                </Button>
               </div>
+
+              {/* Memory list */}
+              {memories.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Memory size={48} weight="duotone" className="mx-auto mb-4 text-purple-500/50" />
+                  <p>还没有学习到任何记忆</p>
+                  <p className="text-sm mt-2">与 AI 对话时，它会自动学习您的偏好</p>
+                </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2">
+                  {memories.map((memory) => (
+                    <MemoryCardWithDelete 
+                      key={memory.id} 
+                      memory={memory} 
+                      onDelete={() => deleteMemory(memory.id)}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* Memory stats */}
               <div className="mt-6 p-4 bg-muted rounded-lg">
                 <div className="flex items-center gap-2 mb-2">
                   <Sparkle size={16} weight="fill" className="text-amber-500" />
@@ -387,15 +509,15 @@ export function AIAssistant() {
                 </div>
                 <div className="grid grid-cols-3 gap-4 text-center">
                   <div>
-                    <div className="text-2xl font-bold text-purple-600">{state.memories.length}</div>
+                    <div className="text-2xl font-bold text-purple-600">{memories.length}</div>
                     <div className="text-xs text-muted-foreground">已学习记忆</div>
                   </div>
                   <div>
                     <div className="text-2xl font-bold text-blue-600">
-                      {state.memories.length > 0
+                      {memories.length > 0
                         ? Math.round(
-                            state.memories.reduce((acc, m) => acc + m.confidence, 0) /
-                              state.memories.length *
+                            memories.reduce((acc, m) => acc + m.confidence, 0) /
+                              memories.length *
                               100
                           )
                         : 0}%
@@ -404,7 +526,7 @@ export function AIAssistant() {
                   </div>
                   <div>
                     <div className="text-2xl font-bold text-green-600">
-                      {state.memories.reduce((acc, m) => acc + m.usageCount, 0)}
+                      {memories.reduce((acc, m) => acc + m.usageCount, 0)}
                     </div>
                     <div className="text-xs text-muted-foreground">总使用次数</div>
                   </div>
@@ -414,6 +536,163 @@ export function AIAssistant() {
           </Card>
         </TabsContent>
 
+        {/* Config Tab */}
+        <TabsContent value="config" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Plugs size={20} weight="duotone" className="text-blue-500" />
+                本地大模型配置
+              </CardTitle>
+              <CardDescription>
+                配置本地运行的 AI 模型（如 Ollama）或使用模拟模式
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Connection status */}
+              <div className="p-4 rounded-lg border">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-full ${isConnected ? 'bg-green-100' : 'bg-red-100'}`}>
+                      {isConnected ? (
+                        <PlugsConnected size={24} weight="duotone" className="text-green-600" />
+                      ) : (
+                        <Plugs size={24} weight="duotone" className="text-red-600" />
+                      )}
+                    </div>
+                    <div>
+                      <div className="font-medium">
+                        {isConnected ? '连接成功' : '未连接'}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {connectionStatus?.error || (isConnected ? `模型: ${connectionStatus?.model}` : '请检查配置')}
+                      </div>
+                    </div>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    onClick={refreshConnection}
+                    disabled={isConnecting}
+                    className="gap-2"
+                  >
+                    <ArrowClockwise 
+                      size={16} 
+                      weight="bold" 
+                      className={isConnecting ? 'animate-spin' : ''} 
+                    />
+                    刷新
+                  </Button>
+                </div>
+              </div>
+
+              {/* Provider selection */}
+              <div className="space-y-2">
+                <Label>模型提供商</Label>
+                <Select
+                  value={config.provider}
+                  onValueChange={(value: LLMProvider) => updateConfig({ provider: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="选择提供商" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ollama">Ollama（本地）</SelectItem>
+                    <SelectItem value="mock">模拟模式（无需服务）</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Ollama 需要在本地安装并运行，模拟模式使用预设回复
+                </p>
+              </div>
+
+              {/* Endpoint configuration (only for ollama) */}
+              {config.provider === 'ollama' && (
+                <>
+                  <div className="space-y-2">
+                    <Label>服务地址</Label>
+                    <Input
+                      value={config.endpoint}
+                      onChange={(e) => updateConfig({ endpoint: e.target.value })}
+                      placeholder="http://localhost:11434"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Ollama 默认运行在 http://localhost:11434
+                    </p>
+                  </div>
+
+                  {/* Model selection */}
+                  <div className="space-y-2">
+                    <Label>模型选择</Label>
+                    {availableModels.length > 0 ? (
+                      <Select
+                        value={config.model}
+                        onValueChange={(value) => updateConfig({ model: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="选择模型" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableModels.map((model) => (
+                            <SelectItem key={model.name} value={model.name}>
+                              {model.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Input
+                        value={config.model}
+                        onChange={(e) => updateConfig({ model: e.target.value })}
+                        placeholder="qwen2.5:7b"
+                      />
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      推荐: qwen2.5:7b, llama3.2, mistral 等支持中文的模型
+                    </p>
+                  </div>
+                </>
+              )}
+
+              {/* Temperature */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>创造性 (Temperature)</Label>
+                  <span className="text-sm text-muted-foreground">{config.temperature}</span>
+                </div>
+                <Slider
+                  value={[config.temperature || 0.7]}
+                  onValueChange={([value]) => updateConfig({ temperature: value })}
+                  min={0}
+                  max={1}
+                  step={0.1}
+                />
+                <p className="text-xs text-muted-foreground">
+                  较低值更准确稳定，较高值更有创造性
+                </p>
+              </div>
+
+              <Separator />
+
+              {/* Danger zone */}
+              <div className="space-y-4">
+                <div className="text-sm font-medium text-destructive">危险操作</div>
+                <Button 
+                  variant="destructive" 
+                  onClick={handleClearAll}
+                  className="gap-2"
+                >
+                  <Trash size={16} weight="bold" />
+                  清除所有数据
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  这将清除所有对话历史、记忆和配置
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Capabilities Tab */}
         <TabsContent value="capabilities" className="space-y-4">
           <div className="grid gap-6 md:grid-cols-3">
             <Card>
@@ -431,7 +710,7 @@ export function AIAssistant() {
                   <CapabilityCard
                     key={cap.id}
                     capability={cap}
-                    onToggle={handleToggleCapability}
+                    onToggle={toggleCapability}
                   />
                 ))}
               </CardContent>
@@ -452,7 +731,7 @@ export function AIAssistant() {
                   <CapabilityCard
                     key={cap.id}
                     capability={cap}
-                    onToggle={handleToggleCapability}
+                    onToggle={toggleCapability}
                   />
                 ))}
               </CardContent>
@@ -473,7 +752,7 @@ export function AIAssistant() {
                   <CapabilityCard
                     key={cap.id}
                     capability={cap}
-                    onToggle={handleToggleCapability}
+                    onToggle={toggleCapability}
                   />
                 ))}
               </CardContent>
@@ -485,44 +764,48 @@ export function AIAssistant() {
   );
 }
 
-// Helper functions for AI responses
-function generateAIResponse(input: string): string {
-  const lowerInput = input.toLowerCase();
-  
-  if (lowerInput.includes('钱包') || lowerInput.includes('余额') || lowerInput.includes('wallet') || lowerInput.includes('balance')) {
-    return '我已经检查了您的钱包状态。您目前有:\n\n💰 **总资产**: $231,690.75\n\n主要钱包:\n- Treasury Vault: $125,432 (Ethereum)\n- Operating Account: $23,234 (Polygon)\n- DeFi Strategy: $8,024 (Arbitrum)\n\n需要我执行什么操作吗？';
-  }
-  
-  if (lowerInput.includes('交易') || lowerInput.includes('转账') || lowerInput.includes('transaction') || lowerInput.includes('transfer')) {
-    return '我可以帮您创建新交易。请提供以下信息:\n\n1. 发送方钱包\n2. 接收地址\n3. 金额和代币\n4. 交易描述\n\n或者您可以说 "从Treasury Vault转账5000 USDC到供应商"，我会自动解析。';
-  }
-  
-  if (lowerInput.includes('风险') || lowerInput.includes('分析') || lowerInput.includes('risk') || lowerInput.includes('analysis')) {
-    return '🔍 **风险分析报告**\n\n当前待处理交易风险:\n\n⚠️ **高风险** - tx-3 (Operating Account)\n- 大额转账: 25,000 USDT\n- 首次收款地址\n- 建议: 验证收款方身份\n\n✅ **低风险** - tx-1 (Treasury Vault)\n- 已知收款方\n- 常规交易模式\n\n需要我提供更详细的分析吗？';
-  }
-  
-  if (lowerInput.includes('defi') || lowerInput.includes('策略') || lowerInput.includes('收益')) {
-    return '📊 **DeFi 策略建议**\n\n基于您的风险偏好，推荐:\n\n1. **稳定币借贷** (Aave V3)\n   - APY: 5.2%\n   - 风险: 低\n\n2. **ETH 质押** (Lido)\n   - APY: 3.8%\n   - 风险: 低\n\n3. **流动性挖矿** (Uniswap V3)\n   - APY: 12.5%\n   - 风险: 中\n\n需要我帮您配置自动投资策略吗？';
-  }
-  
-  return '感谢您的提问！我是 OmniCore 智能助手，可以帮助您:\n\n• 📊 查询和管理钱包\n• 💸 创建和签署交易\n• 🔍 分析交易风险\n• 📈 管理 DeFi 策略\n• ⚙️ 配置平台设置\n\n请告诉我您需要什么帮助？';
+// Memory card with delete button
+interface MemoryCardWithDeleteProps {
+  memory: AIMemoryItem;
+  onDelete: () => void;
 }
 
-function detectAction(input: string): AIMessage['action'] | undefined {
-  const lowerInput = input.toLowerCase();
-  
-  if (lowerInput.includes('钱包') || lowerInput.includes('余额')) {
-    return { type: 'wallet_query', status: 'completed' };
-  }
-  if (lowerInput.includes('交易') || lowerInput.includes('转账')) {
-    return { type: 'transaction_create', status: 'pending' };
-  }
-  if (lowerInput.includes('风险') || lowerInput.includes('分析')) {
-    return { type: 'risk_analyze', status: 'completed' };
-  }
-  if (lowerInput.includes('defi') || lowerInput.includes('策略')) {
-    return { type: 'defi_manage', status: 'completed' };
-  }
-  
-  return undefined;
+function MemoryCardWithDelete({ memory, onDelete }: MemoryCardWithDeleteProps) {
+  return (
+    <Card className={`${getMemoryTypeColor(memory.type)} border`}>
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <Badge variant="outline" className="text-xs">
+                {getMemoryTypeLabel(memory.type)}
+              </Badge>
+              <span className="text-xs text-muted-foreground">
+                置信度: {Math.round(memory.confidence * 100)}%
+              </span>
+            </div>
+            <div className="font-medium text-sm">{memory.key}</div>
+            <div className="text-sm text-muted-foreground mt-1">{memory.value}</div>
+          </div>
+          <div className="flex items-center gap-2 ml-2">
+            <Brain size={20} weight="duotone" className="text-purple-500" />
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 text-destructive"
+              onClick={onDelete}
+            >
+              <Trash size={14} weight="bold" />
+            </Button>
+          </div>
+        </div>
+        <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
+          <span>使用 {memory.usageCount} 次</span>
+          <span>学习于 {formatTimeAgo(memory.learnedAt)}</span>
+        </div>
+        <Progress value={memory.confidence * 100} className="h-1 mt-2" />
+      </CardContent>
+    </Card>
+  );
 }
+
