@@ -1,4 +1,4 @@
-import type { Wallet, Transaction, DeFiPosition, PaymentRequest, DCAStrategy, OmniTokenStats, NotificationItem, TokenBalance, AIMessage, AIMemoryItem, AICapability, AIAssistantState } from './types';
+import type { Wallet, Transaction, DeFiPosition, PaymentRequest, DCAStrategy, OmniTokenStats, NotificationItem, TokenBalance, AIMessage, AIMemoryItem, AICapability, AIAssistantState, Llama4Model, Llama4FineTuneConfig } from './types';
 
 export const NETWORKS = {
   ethereum: { name: 'Ethereum', color: '#627EEA', icon: '⟠' },
@@ -556,4 +556,97 @@ export function generateMockAIAssistantState(): AIAssistantState {
     capabilities: generateMockAICapabilities(),
     lastActiveAt: Date.now() - 4 * 60 * 1000,
   };
+}
+
+// Llama 4 Models Mock Data
+
+export function generateMockLlama4Models(): Llama4Model[] {
+  return [
+    {
+      id: 'llama4-scout',
+      name: 'Llama 4 Scout',
+      parameters: '17B',
+      experts: 16,
+      description: 'Llama 4 Scout 是一个高效的混合专家模型，拥有 17B (170亿) 活跃参数和 16 个专家，专为文本和图像理解任务优化。',
+      capabilities: [
+        '原生多模态支持',
+        '文本生成与理解',
+        '图像理解与分析',
+        '代码生成与解释',
+        '多语言支持',
+      ],
+      minVRAM: '24GB',
+      recommendedVRAM: '48GB',
+      supportedPrecisions: ['fp16', 'int8', 'int4'],
+      fineTuneSupported: true,
+      localDeployment: true,
+    },
+    {
+      id: 'llama4-maverick',
+      name: 'Llama 4 Maverick',
+      parameters: '17B',
+      experts: 128,
+      description: 'Llama 4 Maverick 是一个更强大的混合专家模型，拥有 17B (170亿) 活跃参数和 128 个专家，在复杂推理任务中表现出色。',
+      capabilities: [
+        '原生多模态支持',
+        '高级推理能力',
+        '复杂任务处理',
+        '图像与视频理解',
+        '代码生成与调试',
+        '多轮对话',
+      ],
+      minVRAM: '48GB',
+      recommendedVRAM: '80GB',
+      supportedPrecisions: ['fp16', 'int8', 'int4'],
+      fineTuneSupported: true,
+      localDeployment: true,
+    },
+  ];
+}
+
+export function generateMockLlama4FineTuneConfig(): Llama4FineTuneConfig {
+  return {
+    id: 'finetune-1',
+    modelId: 'llama4-scout',
+    method: 'QLoRA',
+    quantization: '4bit',
+    learningRate: 0.0002,
+    batchSize: 4,
+    epochs: 3,
+    status: 'idle',
+    progress: 0,
+    estimatedTime: '约 2-4 小时（取决于数据集大小）',
+  };
+}
+
+export function generateLlama4FineTuneGuide(): string[] {
+  return [
+    '✅ 是的，Llama 4 模型支持本地微调！',
+    '',
+    '🔧 **本地微调要求**',
+    '',
+    '**硬件要求：**',
+    '• Llama 4 Scout: 最低 24GB VRAM (推荐 48GB)',
+    '• Llama 4 Maverick: 最低 48GB VRAM (推荐 80GB)',
+    '• 使用 QLoRA 4-bit 量化可显著降低显存需求',
+    '',
+    '**推荐微调方法：**',
+    '1. **QLoRA (推荐)** - 4-bit 量化 + LoRA，显存需求低',
+    '2. **LoRA** - 参数高效微调，仅训练适配器权重',
+    '3. **Full Fine-tuning** - 完全微调，需要大量显存',
+    '',
+    '**微调步骤：**',
+    '1. 准备训练数据集（JSON/JSONL 格式）',
+    '2. 选择基础模型（Scout 或 Maverick）',
+    '3. 配置训练参数（学习率、批次大小、轮次）',
+    '4. 启动微调训练',
+    '5. 评估模型性能',
+    '6. 部署微调后的模型',
+    '',
+    '**常用工具：**',
+    '• Hugging Face Transformers + PEFT',
+    '• llama.cpp (量化部署)',
+    '• vLLM (推理优化)',
+    '• Unsloth (高效微调)',
+  ];
 }

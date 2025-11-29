@@ -20,12 +20,19 @@ import {
   Lightning,
   Memory,
   Gear,
+  Cpu,
+  GraduationCap,
+  CheckCircle,
+  Info,
 } from '@phosphor-icons/react';
 import {
   generateMockAIAssistantState,
   formatTimeAgo,
+  generateMockLlama4Models,
+  generateMockLlama4FineTuneConfig,
+  generateLlama4FineTuneGuide,
 } from '@/lib/mock-data';
-import type { AIMessage, AIMemoryItem, AICapability } from '@/lib/types';
+import type { AIMessage, AIMemoryItem, AICapability, Llama4Model, Llama4FineTuneConfig } from '@/lib/types';
 
 function getCapabilityIcon(iconName: string) {
   const icons: Record<string, React.ReactNode> = {
@@ -207,17 +214,186 @@ function CapabilityCard({ capability, onToggle }: CapabilityCardProps) {
   );
 }
 
+interface Llama4ModelCardProps {
+  model: Llama4Model;
+}
+
+function Llama4ModelCard({ model }: Llama4ModelCardProps) {
+  return (
+    <Card className="border hover:shadow-lg transition-shadow">
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500">
+              <Cpu size={24} weight="duotone" className="text-white" />
+            </div>
+            <div>
+              <CardTitle className="text-lg">{model.name}</CardTitle>
+              <CardDescription className="flex items-center gap-2 mt-1">
+                <Badge variant="outline">{model.parameters} 参数</Badge>
+                <Badge variant="secondary">{model.experts} 专家</Badge>
+              </CardDescription>
+            </div>
+          </div>
+          {model.fineTuneSupported && (
+            <Badge className="bg-green-100 text-green-700 border-green-300">
+              <CheckCircle size={14} weight="fill" className="mr-1" />
+              支持微调
+            </Badge>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-muted-foreground">{model.description}</p>
+        
+        <div>
+          <div className="text-sm font-medium mb-2">核心能力</div>
+          <div className="flex flex-wrap gap-2">
+            {model.capabilities.map((cap, idx) => (
+              <Badge key={idx} variant="outline" className="text-xs">
+                {cap}
+              </Badge>
+            ))}
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-2 gap-4 pt-2">
+          <div className="p-3 bg-muted rounded-lg">
+            <div className="text-xs text-muted-foreground">最低显存</div>
+            <div className="font-semibold text-sm">{model.minVRAM}</div>
+          </div>
+          <div className="p-3 bg-muted rounded-lg">
+            <div className="text-xs text-muted-foreground">推荐显存</div>
+            <div className="font-semibold text-sm">{model.recommendedVRAM}</div>
+          </div>
+        </div>
+        
+        <div>
+          <div className="text-sm font-medium mb-2">支持精度</div>
+          <div className="flex gap-2">
+            {model.supportedPrecisions.map((precision, idx) => (
+              <Badge key={idx} variant="secondary" className="text-xs">
+                {precision}
+              </Badge>
+            ))}
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-2 pt-2">
+          {model.localDeployment && (
+            <Badge className="bg-blue-100 text-blue-700 border-blue-300">
+              <Info size={12} weight="fill" className="mr-1" />
+              支持本地部署
+            </Badge>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+interface FineTuneConfigPanelProps {
+  config: Llama4FineTuneConfig;
+  onStartTraining: () => void;
+}
+
+function FineTuneConfigPanel({ config, onStartTraining }: FineTuneConfigPanelProps) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg flex items-center gap-2">
+          <GraduationCap size={20} weight="duotone" className="text-purple-500" />
+          微调配置
+        </CardTitle>
+        <CardDescription>
+          配置 Llama 4 模型的本地微调参数
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <div className="text-sm font-medium mb-1">微调方法</div>
+            <Badge variant="outline" className="text-sm py-1 px-3">
+              {config.method}
+            </Badge>
+          </div>
+          <div>
+            <div className="text-sm font-medium mb-1">量化精度</div>
+            <Badge variant="outline" className="text-sm py-1 px-3">
+              {config.quantization}
+            </Badge>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-3 gap-4">
+          <div className="p-3 bg-muted rounded-lg text-center">
+            <div className="text-xs text-muted-foreground">学习率</div>
+            <div className="font-mono font-semibold text-sm">{config.learningRate}</div>
+          </div>
+          <div className="p-3 bg-muted rounded-lg text-center">
+            <div className="text-xs text-muted-foreground">批次大小</div>
+            <div className="font-mono font-semibold text-sm">{config.batchSize}</div>
+          </div>
+          <div className="p-3 bg-muted rounded-lg text-center">
+            <div className="text-xs text-muted-foreground">训练轮次</div>
+            <div className="font-mono font-semibold text-sm">{config.epochs}</div>
+          </div>
+        </div>
+        
+        {config.status === 'training' && (
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span>训练进度</span>
+              <span>{config.progress}%</span>
+            </div>
+            <Progress value={config.progress} className="h-2" />
+          </div>
+        )}
+        
+        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+          <div className="flex items-center gap-2 text-amber-700 text-sm">
+            <Info size={16} weight="fill" />
+            <span>预计训练时间: {config.estimatedTime}</span>
+          </div>
+        </div>
+        
+        <Button 
+          className="w-full gap-2" 
+          onClick={onStartTraining}
+          disabled={config.status === 'training'}
+        >
+          <Lightning size={18} weight="fill" />
+          {config.status === 'training' ? '训练中...' : '开始微调'}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function AIAssistant() {
   const [state, setState] = useState(generateMockAIAssistantState);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const trainingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const llama4Models = generateMockLlama4Models();
+  const [fineTuneConfig, setFineTuneConfig] = useState(generateMockLlama4FineTuneConfig);
+  const fineTuneGuide = generateLlama4FineTuneGuide();
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [state.currentConversation]);
+
+  // Cleanup training interval on unmount
+  useEffect(() => {
+    return () => {
+      if (trainingIntervalRef.current) {
+        clearInterval(trainingIntervalRef.current);
+      }
+    };
+  }, []);
 
   const handleSendMessage = () => {
     if (!inputValue.trim()) return;
@@ -291,7 +467,7 @@ export function AIAssistant() {
       </div>
 
       <Tabs defaultValue="chat" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
+        <TabsList className="flex flex-wrap w-full lg:w-auto lg:inline-flex">
           <TabsTrigger value="chat" className="gap-2">
             <ChatCircle size={18} weight="duotone" />
             <span className="hidden sm:inline">对话</span>
@@ -303,6 +479,10 @@ export function AIAssistant() {
           <TabsTrigger value="capabilities" className="gap-2">
             <Gear size={18} weight="duotone" />
             <span className="hidden sm:inline">能力</span>
+          </TabsTrigger>
+          <TabsTrigger value="llama4" className="gap-2">
+            <Cpu size={18} weight="duotone" />
+            <span className="hidden sm:inline">Llama 4</span>
           </TabsTrigger>
         </TabsList>
 
@@ -480,6 +660,99 @@ export function AIAssistant() {
             </Card>
           </div>
         </TabsContent>
+
+        <TabsContent value="llama4" className="space-y-4">
+          <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50">
+            <CardHeader>
+              <CardTitle className="text-xl flex items-center gap-2">
+                <Cpu size={24} weight="duotone" className="text-purple-500" />
+                Llama 4 模型本地微调
+              </CardTitle>
+              <CardDescription className="text-base">
+                Llama 4 是 Meta 最新发布的原生多模态 AI 模型，采用混合专家 (MoE) 架构，支持文本和图像理解。
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="p-4 bg-white/80 rounded-lg border">
+                <div className="prose prose-sm max-w-none">
+                  {fineTuneGuide.map((line, idx) => (
+                    <p key={idx} className="my-1 text-sm whitespace-pre-wrap">
+                      {line}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            {llama4Models.map((model) => (
+              <Llama4ModelCard key={model.id} model={model} />
+            ))}
+          </div>
+
+          <FineTuneConfigPanel 
+            config={fineTuneConfig} 
+            onStartTraining={() => {
+              setFineTuneConfig(prev => ({
+                ...prev,
+                status: 'training',
+                progress: 0,
+              }));
+              // Simulate training progress
+              let progress = 0;
+              trainingIntervalRef.current = setInterval(() => {
+                progress += Math.random() * 15;
+                if (progress >= 100) {
+                  progress = 100;
+                  if (trainingIntervalRef.current) {
+                    clearInterval(trainingIntervalRef.current);
+                    trainingIntervalRef.current = null;
+                  }
+                  setFineTuneConfig(prev => ({
+                    ...prev,
+                    status: 'completed',
+                    progress: 100,
+                  }));
+                } else {
+                  setFineTuneConfig(prev => ({
+                    ...prev,
+                    progress: Math.min(progress, 99),
+                  }));
+                }
+              }, 1000);
+            }}
+          />
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Info size={20} weight="duotone" className="text-blue-500" />
+                常见问题
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="p-4 bg-muted rounded-lg">
+                <div className="font-medium text-sm mb-1">Q: 本地微调需要什么硬件？</div>
+                <div className="text-sm text-muted-foreground">
+                  A: 使用 QLoRA 4-bit 量化，Scout 模型最低需要 24GB VRAM（如 RTX 4090 或 A10G），Maverick 模型需要 48GB+ VRAM（如 A100 或多卡配置）。
+                </div>
+              </div>
+              <div className="p-4 bg-muted rounded-lg">
+                <div className="font-medium text-sm mb-1">Q: 微调需要多长时间？</div>
+                <div className="text-sm text-muted-foreground">
+                  A: 取决于数据集大小和硬件配置。通常 1000 条数据在 RTX 4090 上使用 QLoRA 微调约需 1-2 小时。
+                </div>
+              </div>
+              <div className="p-4 bg-muted rounded-lg">
+                <div className="font-medium text-sm mb-1">Q: 推荐使用什么工具？</div>
+                <div className="text-sm text-muted-foreground">
+                  A: 推荐使用 Hugging Face Transformers + PEFT 库，或者 Unsloth 进行高效微调。部署可使用 llama.cpp 或 vLLM。
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
     </div>
   );
@@ -488,6 +761,11 @@ export function AIAssistant() {
 // Helper functions for AI responses
 function generateAIResponse(input: string): string {
   const lowerInput = input.toLowerCase();
+  
+  // Llama 4 related responses
+  if (lowerInput.includes('llama') || lowerInput.includes('微调') || lowerInput.includes('fine-tune') || lowerInput.includes('fine tune')) {
+    return '🦙 **Llama 4 模型微调指南**\n\n✅ 是的，Llama 4 模型完全支持本地微调！\n\n**可用模型：**\n• Llama 4 Scout (17B, 16 专家) - 最低 24GB VRAM\n• Llama 4 Maverick (17B, 128 专家) - 最低 48GB VRAM\n\n**推荐方法：**\n• QLoRA (4-bit) - 显存需求最低\n• LoRA - 参数高效微调\n• Full Fine-tuning - 完全微调\n\n**常用工具：**\n• Hugging Face Transformers + PEFT\n• Unsloth (高效微调)\n• llama.cpp (部署)\n\n请访问 **Llama 4** 标签页了解详细配置！';
+  }
   
   if (lowerInput.includes('钱包') || lowerInput.includes('余额') || lowerInput.includes('wallet') || lowerInput.includes('balance')) {
     return '我已经检查了您的钱包状态。您目前有:\n\n💰 **总资产**: $231,690.75\n\n主要钱包:\n- Treasury Vault: $125,432 (Ethereum)\n- Operating Account: $23,234 (Polygon)\n- DeFi Strategy: $8,024 (Arbitrum)\n\n需要我执行什么操作吗？';
@@ -505,7 +783,7 @@ function generateAIResponse(input: string): string {
     return '📊 **DeFi 策略建议**\n\n基于您的风险偏好，推荐:\n\n1. **稳定币借贷** (Aave V3)\n   - APY: 5.2%\n   - 风险: 低\n\n2. **ETH 质押** (Lido)\n   - APY: 3.8%\n   - 风险: 低\n\n3. **流动性挖矿** (Uniswap V3)\n   - APY: 12.5%\n   - 风险: 中\n\n需要我帮您配置自动投资策略吗？';
   }
   
-  return '感谢您的提问！我是 OmniCore 智能助手，可以帮助您:\n\n• 📊 查询和管理钱包\n• 💸 创建和签署交易\n• 🔍 分析交易风险\n• 📈 管理 DeFi 策略\n• ⚙️ 配置平台设置\n\n请告诉我您需要什么帮助？';
+  return '感谢您的提问！我是 OmniCore 智能助手，可以帮助您:\n\n• 📊 查询和管理钱包\n• 💸 创建和签署交易\n• 🔍 分析交易风险\n• 📈 管理 DeFi 策略\n• 🦙 Llama 4 模型微调\n• ⚙️ 配置平台设置\n\n请告诉我您需要什么帮助？';
 }
 
 function detectAction(input: string): AIMessage['action'] | undefined {
