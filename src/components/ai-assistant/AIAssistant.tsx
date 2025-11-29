@@ -558,7 +558,8 @@ export function AIAssistant() {
                       </tr>
                     </thead>
                     <tbody>
-                      {['钱包管理', '风险评估', '高级推理', '市场预测', '智能合约审计'].map((feature) => (
+                      {/* Extract unique capabilities from all models for comparison */}
+                      {Array.from(new Set(state.availableModels.flatMap(m => m.capabilities))).slice(0, 5).map((feature) => (
                         <tr key={feature} className="border-b border-border/50">
                           <td className="py-2">{feature}</td>
                           {state.availableModels.map((model) => (
