@@ -203,3 +203,31 @@ export interface AICapability {
   enabled: boolean;
   category: 'memory' | 'language' | 'control';
 }
+
+// Llama 4 Model Types
+export interface Llama4Model {
+  id: string;
+  name: string;
+  parameters: string;
+  experts: number;
+  description: string;
+  capabilities: string[];
+  minVRAM: string;
+  recommendedVRAM: string;
+  supportedPrecisions: string[];
+  fineTuneSupported: boolean;
+  localDeployment: boolean;
+}
+
+export interface Llama4FineTuneConfig {
+  id: string;
+  modelId: string;
+  method: 'LoRA' | 'QLoRA' | 'Full';
+  quantization: '4bit' | '8bit' | 'none';
+  learningRate: number;
+  batchSize: number;
+  epochs: number;
+  status: 'idle' | 'training' | 'completed' | 'failed';
+  progress: number;
+  estimatedTime?: string;
+}
