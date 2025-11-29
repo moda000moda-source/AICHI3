@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { Toaster } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Bell, Wallet, ChartLine, CreditCard, ArrowsLeftRight, Coins, Gear, AddressBook as AddressBookIcon, Robot } from '@phosphor-icons/react';
+import { Bell, Wallet, ChartLine, CreditCard, ArrowsLeftRight, Coins, Gear, AddressBook as AddressBookIcon, Robot, ShieldCheck } from '@phosphor-icons/react';
 import { DashboardStats } from '@/components/dashboard/DashboardStats';
 import { WalletCard } from '@/components/wallet/WalletCard';
 import { CreateWalletDialog } from '@/components/wallet/CreateWalletDialog';
+import { MPCKeySharesPanel } from '@/components/wallet/MPCKeySharesPanel';
 import { TransactionList } from '@/components/transaction/TransactionList';
 import { DeFiPositions } from '@/components/defi/DeFiPositions';
 import { OmniTokenDashboard } from '@/components/token/OmniTokenDashboard';
@@ -109,7 +110,7 @@ function App() {
       
       <main className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid lg:grid-cols-9">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid lg:grid-cols-10">
             <TabsTrigger value="overview" className="gap-2">
               <ChartLine size={18} weight="duotone" />
               <span className="hidden sm:inline">Overview</span>
@@ -117,6 +118,10 @@ function App() {
             <TabsTrigger value="wallets" className="gap-2">
               <Wallet size={18} weight="duotone" />
               <span className="hidden sm:inline">Wallets</span>
+            </TabsTrigger>
+            <TabsTrigger value="mpc" className="gap-2">
+              <ShieldCheck size={18} weight="duotone" className="text-violet-600" />
+              <span className="hidden sm:inline">MPC</span>
             </TabsTrigger>
             <TabsTrigger value="transactions" className="gap-2">
               <ArrowsLeftRight size={18} weight="duotone" />
@@ -189,6 +194,86 @@ function App() {
               {wallets.map((wallet) => (
                 <WalletCard key={wallet.id} wallet={wallet} />
               ))}
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="mpc" className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-3xl font-bold flex items-center gap-3">
+                  <ShieldCheck size={32} weight="bold" className="text-violet-600" />
+                  MPC Wallets
+                </h2>
+                <p className="text-muted-foreground mt-1">
+                  Multi-Party Computation wallets with distributed key management
+                </p>
+              </div>
+              <Button className="gap-2" onClick={() => setCreateWalletOpen(true)}>
+                <ShieldCheck size={18} weight="bold" />
+                Create MPC Wallet
+              </Button>
+            </div>
+            
+            {/* MPC Wallets List */}
+            {wallets.filter(w => w.type === 'mpc').length === 0 ? (
+              <div className="border rounded-lg p-12 text-center">
+                <ShieldCheck size={64} weight="duotone" className="mx-auto mb-4 text-violet-400" />
+                <h3 className="text-xl font-semibold mb-2">No MPC Wallets Yet</h3>
+                <p className="text-muted-foreground max-w-md mx-auto mb-6">
+                  MPC wallets provide the highest level of security by splitting your private key 
+                  across multiple parties. No single party ever has access to the complete key.
+                </p>
+                <Button className="gap-2" onClick={() => setCreateWalletOpen(true)}>
+                  <ShieldCheck size={18} weight="bold" />
+                  Create Your First MPC Wallet
+                </Button>
+              </div>
+            ) : (
+              <div className="grid gap-6 lg:grid-cols-2">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Your MPC Wallets</h3>
+                  {wallets.filter(w => w.type === 'mpc').map((wallet) => (
+                    <WalletCard key={wallet.id} wallet={wallet} />
+                  ))}
+                </div>
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Key Share Management</h3>
+                  {wallets.filter(w => w.type === 'mpc').map((wallet) => (
+                    <MPCKeySharesPanel key={wallet.id} wallet={wallet} />
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* MPC Info Section */}
+            <div className="grid gap-6 md:grid-cols-3">
+              <div className="border rounded-lg p-6 bg-violet-50/50">
+                <div className="w-12 h-12 rounded-full bg-violet-100 flex items-center justify-center mb-4">
+                  <ShieldCheck size={24} weight="bold" className="text-violet-600" />
+                </div>
+                <h4 className="font-semibold mb-2">No Single Point of Failure</h4>
+                <p className="text-sm text-muted-foreground">
+                  Private key is split into multiple shares. Even if one share is compromised, your assets remain secure.
+                </p>
+              </div>
+              <div className="border rounded-lg p-6 bg-blue-50/50">
+                <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mb-4">
+                  <ArrowsLeftRight size={24} weight="bold" className="text-blue-600" />
+                </div>
+                <h4 className="font-semibold mb-2">Threshold Signatures</h4>
+                <p className="text-sm text-muted-foreground">
+                  Configure how many key shares are needed to sign transactions (e.g., 2 of 3).
+                </p>
+              </div>
+              <div className="border rounded-lg p-6 bg-green-50/50">
+                <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-4">
+                  <Wallet size={24} weight="bold" className="text-green-600" />
+                </div>
+                <h4 className="font-semibold mb-2">Key Rotation & Recovery</h4>
+                <p className="text-sm text-muted-foreground">
+                  Rotate key shares periodically and enable social recovery for lost shares.
+                </p>
+              </div>
             </div>
           </TabsContent>
           

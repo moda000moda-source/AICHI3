@@ -1,4 +1,4 @@
-import type { Wallet, Transaction, DeFiPosition, PaymentRequest, DCAStrategy, OmniTokenStats, NotificationItem, TokenBalance, AIMessage, AIMemoryItem, AICapability, AIAssistantState } from './types';
+import type { Wallet, Transaction, DeFiPosition, PaymentRequest, DCAStrategy, OmniTokenStats, NotificationItem, TokenBalance, AIMessage, AIMemoryItem, AICapability, AIAssistantState, MPCKeyShare, MPCConfig } from './types';
 
 export const NETWORKS = {
   ethereum: { name: 'Ethereum', color: '#627EEA', icon: '⟠' },
@@ -82,6 +82,113 @@ export function generateMockWallets(): Wallet[] {
       },
       tokens: [],
       createdAt: Date.now() - 30 * 24 * 60 * 60 * 1000,
+    },
+    {
+      id: 'wallet-4',
+      name: 'MPC Secure Vault',
+      address: '0x3Cd0A705a2DC65e5b1E1205896BaA2be8A07c6e0',
+      network: 'ethereum',
+      type: 'mpc',
+      mpcConfig: {
+        threshold: 2,
+        totalShares: 3,
+        keyShares: [
+          {
+            id: 'share-1',
+            partyId: 'party-1',
+            partyName: 'Admin Device',
+            status: 'active',
+            deviceType: 'mobile',
+            lastUsed: Date.now() - 2 * 60 * 60 * 1000,
+            createdAt: Date.now() - 45 * 24 * 60 * 60 * 1000,
+          },
+          {
+            id: 'share-2',
+            partyId: 'party-2',
+            partyName: 'HSM Server',
+            status: 'active',
+            deviceType: 'server',
+            lastUsed: Date.now() - 1 * 60 * 60 * 1000,
+            createdAt: Date.now() - 45 * 24 * 60 * 60 * 1000,
+          },
+          {
+            id: 'share-3',
+            partyId: 'party-3',
+            partyName: 'Hardware Wallet',
+            status: 'active',
+            deviceType: 'hardware',
+            lastUsed: Date.now() - 24 * 60 * 60 * 1000,
+            createdAt: Date.now() - 45 * 24 * 60 * 60 * 1000,
+          },
+        ],
+        backupShares: 1,
+        recoveryEnabled: true,
+        lastKeyRotation: Date.now() - 15 * 24 * 60 * 60 * 1000,
+      },
+      balance: {
+        native: '120.5432',
+        usd: '334,103.68',
+      },
+      tokens: [
+        {
+          symbol: 'USDC',
+          name: 'USD Coin',
+          address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+          balance: '200000.00',
+          decimals: 6,
+          priceUsd: '1.00',
+          valueUsd: '200000.00',
+        },
+        {
+          symbol: 'WBTC',
+          name: 'Wrapped Bitcoin',
+          address: '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599',
+          balance: '2.5',
+          decimals: 8,
+          priceUsd: '43500.00',
+          valueUsd: '108750.00',
+        },
+      ],
+      createdAt: Date.now() - 45 * 24 * 60 * 60 * 1000,
+    },
+    {
+      id: 'wallet-5',
+      name: 'MPC Hot Wallet',
+      address: '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0',
+      network: 'polygon',
+      type: 'mpc',
+      mpcConfig: {
+        threshold: 2,
+        totalShares: 2,
+        keyShares: [
+          {
+            id: 'share-4',
+            partyId: 'party-4',
+            partyName: 'Mobile App',
+            status: 'active',
+            deviceType: 'mobile',
+            lastUsed: Date.now() - 30 * 60 * 1000,
+            createdAt: Date.now() - 20 * 24 * 60 * 60 * 1000,
+          },
+          {
+            id: 'share-5',
+            partyId: 'party-5',
+            partyName: 'Cloud HSM',
+            status: 'active',
+            deviceType: 'cloud',
+            lastUsed: Date.now() - 30 * 60 * 1000,
+            createdAt: Date.now() - 20 * 24 * 60 * 60 * 1000,
+          },
+        ],
+        backupShares: 0,
+        recoveryEnabled: false,
+      },
+      balance: {
+        native: '50000.00',
+        usd: '32,500.00',
+      },
+      tokens: [],
+      createdAt: Date.now() - 20 * 24 * 60 * 60 * 1000,
     },
   ];
 }
